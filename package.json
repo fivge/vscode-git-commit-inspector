@@ -1,0 +1,127 @@
+{
+  "name": "git-commit-inspector",
+  "displayName": "Git Commit Inspector",
+  "description": "Inspect a Git commit from its SHA in the integrated terminal.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "private": true,
+  "engines": {
+    "vscode": "^1.136.0"
+  },
+  "categories": [
+    "SCM Providers"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "gitCommitInspect.inspectCommit",
+        "title": "Inspect Commit...",
+        "category": "Git Commit Inspector",
+        "icon": "$(search)"
+      },
+      {
+        "command": "gitCommitInspect.refresh",
+        "title": "Refresh",
+        "category": "Git Commit Inspector",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gitCommitInspect.copyCommitHash",
+        "title": "Copy Commit Hash",
+        "category": "Git Commit Inspector",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "gitCommitInspect.clear",
+        "title": "Clear",
+        "category": "Git Commit Inspector",
+        "icon": "$(clear-all)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gitCommitInspect",
+          "title": "Commit Inspect",
+          "icon": "resources/commit-inspect.svg"
+        }
+      ]
+    },
+    "views": {
+      "gitCommitInspect": [
+        {
+          "id": "gitCommitInspect.commit",
+          "name": "Commit"
+        },
+        {
+          "id": "gitCommitInspect.files",
+          "name": "Files Changed"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "gitCommitInspect.refresh",
+          "when": "gitCommitInspect.hasCommit && (view == gitCommitInspect.commit || view == gitCommitInspect.files)",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitCommitInspect.copyCommitHash",
+          "when": "gitCommitInspect.hasCommit && view == gitCommitInspect.commit",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitCommitInspect.clear",
+          "when": "gitCommitInspect.hasCommit && (view == gitCommitInspect.commit || view == gitCommitInspect.files)",
+          "group": "navigation@3"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Git Commit Inspector",
+      "properties": {
+        "gitCommitInspect.terminalLinks.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable commit SHA links in the integrated terminal."
+        },
+        "gitCommitInspect.terminalLinks.minHashLength": {
+          "type": "integer",
+          "default": 7,
+          "minimum": 4,
+          "maximum": 40,
+          "description": "Minimum length of a Git SHA recognized in the integrated terminal."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "bun run esbuild.mjs",
+    "watch": "bun run esbuild.mjs --watch",
+    "check": "tsc --noEmit",
+    "lint": "eslint src test",
+    "test": "bun test test/unit",
+    "build:test": "bun run esbuild.mjs --tests",
+    "test:integration": "bun run build && bun run build:test && bun test/integration/runTest.ts",
+    "package": "bun run build && vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "latest",
+    "@types/vscode": "^1.136.0",
+    "@vscode/test-electron": "latest",
+    "@vscode/vsce": "latest",
+    "esbuild": "latest",
+    "eslint": "latest",
+    "typescript": "6.0.3",
+    "typescript-eslint": "latest"
+  }
+}
