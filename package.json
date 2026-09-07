@@ -2,9 +2,19 @@
   "name": "git-commit-inspector",
   "displayName": "Git Commit Inspector",
   "description": "Inspect a Git commit from its SHA in the integrated terminal.",
-  "version": "0.1.0",
-  "publisher": "local",
+  "version": "1.0.0",
+  "publisher": "fivge",
   "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fivge/vscode-git-commit-inspector.git"
+  },
+  "homepage": "https://github.com/fivge/vscode-git-commit-inspector#readme",
+  "bugs": {
+    "url": "https://github.com/fivge/vscode-git-commit-inspector/issues"
+  },
+  "icon": "resources/icon.png",
   "engines": {
     "vscode": "^1.136.0"
   },
@@ -33,10 +43,9 @@
         "icon": "$(refresh)"
       },
       {
-        "command": "gitCommitInspect.copyCommitHash",
-        "title": "Copy Commit Hash",
-        "category": "Git Commit Inspector",
-        "icon": "$(copy)"
+        "command": "gitCommitInspect.copyCommitValue",
+        "title": "Copy",
+        "category": "Git Commit Inspector"
       },
       {
         "command": "gitCommitInspect.clear",
@@ -57,12 +66,16 @@
     "views": {
       "gitCommitInspect": [
         {
-          "id": "gitCommitInspect.commit",
-          "name": "Commit"
+          "id": "gitCommitInspect.files",
+          "name": "Files Changed",
+          "icon": "resources/files-changed.svg",
+          "contextualTitle": "Git Commit Inspector: Files Changed"
         },
         {
-          "id": "gitCommitInspect.files",
-          "name": "Files Changed"
+          "id": "gitCommitInspect.commit",
+          "name": "Commit",
+          "icon": "resources/commit.svg",
+          "contextualTitle": "Git Commit Inspector: Commit"
         }
       ]
     },
@@ -70,18 +83,26 @@
       "view/title": [
         {
           "command": "gitCommitInspect.refresh",
-          "when": "gitCommitInspect.hasCommit && (view == gitCommitInspect.commit || view == gitCommitInspect.files)",
+          "when": "gitCommitInspect.hasCommit && view == gitCommitInspect.files",
           "group": "navigation@1"
         },
         {
-          "command": "gitCommitInspect.copyCommitHash",
-          "when": "gitCommitInspect.hasCommit && view == gitCommitInspect.commit",
-          "group": "navigation@2"
-        },
-        {
           "command": "gitCommitInspect.clear",
-          "when": "gitCommitInspect.hasCommit && (view == gitCommitInspect.commit || view == gitCommitInspect.files)",
+          "when": "gitCommitInspect.hasCommit && view == gitCommitInspect.files",
           "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "gitCommitInspect.copyCommitValue",
+          "when": "view == gitCommitInspect.commit && viewItem == commitInfo.copyable",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "gitCommitInspect.copyCommitValue",
+          "when": "false"
         }
       ]
     },

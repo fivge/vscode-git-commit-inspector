@@ -6,6 +6,7 @@ import {
   decodeRevisionUri,
 } from "../../../src/diff/revisionUri";
 import { VsCodeGitService } from "../../../src/git/vscodeGitService";
+import { testChangeTree } from "./changeTree";
 
 export async function run(): Promise<void> {
   const root = vscode.workspace.workspaceFolders?.[0]?.uri;
@@ -40,6 +41,7 @@ export async function run(): Promise<void> {
   assert.ok(repository, "The fixture repository should be discovered");
 
   const rootCommit = await gitService.resolveCommit(repository, "test-root");
+  await testChangeTree({ repository, commit: rootCommit, changes: [] });
   assert.equal(rootCommit.parents.length, 0);
   assert.deepEqual(
     (await gitService.getCommitChanges(repository, rootCommit)).map(

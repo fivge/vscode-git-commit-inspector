@@ -90,6 +90,7 @@ export class CommitInspectController {
       const changes = await this.git.getCommitChanges(previous.repository, commit);
       if (this.requests.isCurrent(request)) {
         this.apply({ repository: previous.repository, commit, changes });
+        await this.changeTree.expandAll().catch(() => undefined);
       }
     } catch (error) {
       if (this.requests.isCurrent(request)) {
@@ -100,14 +101,6 @@ export class CommitInspectController {
         void vscode.window.showErrorMessage(message);
       }
     }
-  }
-
-  public async copyCommitHash(): Promise<void> {
-    if (!this.inspection) {
-      void vscode.window.showInformationMessage("No commit is selected.");
-      return;
-    }
-    await vscode.env.clipboard.writeText(this.inspection.commit.hash);
   }
 
   public clear(): void {

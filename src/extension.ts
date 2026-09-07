@@ -55,8 +55,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("gitCommitInspect.refresh", () =>
       controller.refresh(),
     ),
-    vscode.commands.registerCommand("gitCommitInspect.copyCommitHash", () =>
-      controller.copyCommitHash(),
+    vscode.commands.registerCommand(
+      "gitCommitInspect.copyCommitValue",
+      (node) => commitTree.copy(node),
     ),
     vscode.commands.registerCommand("gitCommitInspect.clear", () =>
       controller.clear(),

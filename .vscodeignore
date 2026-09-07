@@ -1,10 +1,14 @@
 .git/**
+.github/**
 .vscode/**
 src/**
 test/**
+dist/test/**
 node_modules/**
-*.map
+**/*.map
+.gitignore
 tsconfig.json
 eslint.config.mjs
 esbuild.mjs
 bun.lock
+resources/icon.svg

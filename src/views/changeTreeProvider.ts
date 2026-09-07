@@ -8,6 +8,9 @@ export class ChangeTreeProvider
   private readonly changeEmitter = new vscode.EventEmitter<TreeNode | undefined>();
   private nodes: readonly TreeNode[] = [];
   private view: vscode.TreeView<TreeNode> | undefined;
+  private rootUri: vscode.Uri | undefined;
+  private readonly parents = new Map<TreeNode, TreeNode>();
+  private generation = 0;
 
   public readonly onDidChangeTreeData = this.changeEmitter.event;
 
@@ -16,7 +19,17 @@ export class ChangeTreeProvider
   }
 
   public setInspection(inspection: Inspection | undefined): void {
+    this.generation++;
+    this.rootUri = inspection?.repository.rootUri;
     this.nodes = inspection ? buildChangeTree(inspection.changes) : [];
+    this.parents.clear();
+    const indexParents = (nodes: readonly TreeNode[], parent?: TreeNode): void => {
+      for (const node of nodes) {
+        if (parent) this.parents.set(node, parent);
+        if (node.type === "directory") indexParents(node.children, node);
+      }
+    };
+    indexParents(this.nodes);
     if (this.view) {
       this.view.description = inspection ? String(inspection.changes.length) : undefined;
       this.view.message = inspection
@@ -35,6 +48,7 @@ export class ChangeTreeProvider
         vscode.TreeItemCollapsibleState.Expanded,
       );
       item.iconPath = vscode.ThemeIcon.Folder;
+      item.resourceUri = this.resourceUri(node);
       item.contextValue = "directory";
       return item;
     }
@@ -42,7 +56,8 @@ export class ChangeTreeProvider
     const item = new vscode.TreeItem(node.name);
     item.description = formatStats(node.change);
     item.tooltip = formatTooltip(node.change);
-    item.iconPath = iconFor(node.change.status);
+    item.iconPath = vscode.ThemeIcon.File;
+    item.resourceUri = this.resourceUri(node);
     item.contextValue = `file.${node.change.status}`;
     item.command = {
       command: "gitCommitInspect.openDiff",
@@ -60,7 +75,37 @@ export class ChangeTreeProvider
         : [...this.nodes];
   }
 
+  public getParent(node: TreeNode): TreeNode | undefined {
+    return this.parents.get(node);
+  }
+
+  public async expandAll(): Promise<void> {
+    const view = this.view;
+    if (!view) return;
+    const generation = ++this.generation;
+    const pending = [...this.nodes].reverse();
+    while (pending.length > 0 && generation === this.generation) {
+      const node = pending.pop()!;
+      if (node.type !== "directory") continue;
+      try {
+        // reveal only supports up to three levels; visit every directory instead.
+        await view.reveal(node, { expand: true, select: false, focus: false });
+      } catch (error) {
+        if (generation !== this.generation) return;
+        throw error;
+      }
+      pending.push(...[...node.children].reverse());
+    }
+  }
+
+  private resourceUri(node: TreeNode): vscode.Uri | undefined {
+    return this.rootUri ? vscode.Uri.joinPath(this.rootUri, node.path) : undefined;
+  }
+
   public dispose(): void {
+    this.generation++;
+    this.parents.clear();
+    this.view = undefined;
     this.changeEmitter.dispose();
   }
 }
@@ -89,20 +134,4 @@ function statusLetter(status: CommitChange["status"]): string {
 
 function statusName(status: CommitChange["status"]): string {
   return status[0]?.toUpperCase() + status.slice(1);
-}
-
-function iconFor(status: CommitChange["status"]): vscode.ThemeIcon {
-  switch (status) {
-    case "added":
-      return new vscode.ThemeIcon("diff-added");
-    case "deleted":
-      return new vscode.ThemeIcon("diff-removed");
-    case "renamed":
-    case "copied":
-      return new vscode.ThemeIcon("diff-renamed");
-    case "modified":
-      return new vscode.ThemeIcon("diff-modified");
-    case "unknown":
-      return new vscode.ThemeIcon("question");
-  }
 }

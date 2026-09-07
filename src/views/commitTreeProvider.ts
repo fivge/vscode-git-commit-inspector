@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
 import type { CommitInfo } from "../git/types";
 
-type CommitNode =
+export type CommitNode =
   | { readonly kind: "hash"; readonly commit: CommitInfo }
+  | { readonly kind: "message"; readonly commit: CommitInfo }
   | { readonly kind: "author"; readonly commit: CommitInfo }
   | { readonly kind: "date"; readonly commit: CommitInfo };
 
@@ -29,27 +30,26 @@ export class CommitTreeProvider
   }
 
   public getTreeItem(node: CommitNode): vscode.TreeItem {
-    const item = new vscode.TreeItem(
-      node.kind === "hash" ? node.commit.shortHash : labelFor(node.kind),
-    );
+    const item = new vscode.TreeItem(labelFor(node));
     item.collapsibleState = vscode.TreeItemCollapsibleState.None;
+    item.contextValue = "commitInfo.copyable";
+    const copyValue = valueFor(node);
     switch (node.kind) {
       case "hash":
-        item.description = firstLine(node.commit.message);
         item.iconPath = new vscode.ThemeIcon("git-commit");
-        item.tooltip = `${node.commit.hash}\n\n${node.commit.message}`;
-        item.command = {
-          command: "gitCommitInspect.copyCommitHash",
-          title: "Copy Commit Hash",
-        };
+        item.tooltip = node.commit.hash;
+        break;
+      case "message":
+        item.iconPath = new vscode.ThemeIcon("comment");
+        item.tooltip = messageTooltip(node.commit.message);
         break;
       case "author":
-        item.description = formatAuthor(node.commit);
         item.iconPath = new vscode.ThemeIcon("account");
+        item.tooltip = copyValue;
         break;
       case "date":
-        item.description = formatDate(node.commit);
         item.iconPath = new vscode.ThemeIcon("calendar");
+        item.tooltip = copyValue;
         break;
     }
     return item;
@@ -61,9 +61,16 @@ export class CommitTreeProvider
     }
     return [
       { kind: "hash", commit: this.commit },
+      { kind: "message", commit: this.commit },
       { kind: "author", commit: this.commit },
       { kind: "date", commit: this.commit },
     ];
+  }
+
+  public async copy(node: CommitNode | undefined): Promise<void> {
+    if (node) {
+      await vscode.env.clipboard.writeText(valueFor(node));
+    }
   }
 
   public dispose(): void {
@@ -71,13 +78,36 @@ export class CommitTreeProvider
   }
 }
 
-function labelFor(kind: Exclude<CommitNode["kind"], "hash">): string {
-  switch (kind) {
+function labelFor(node: CommitNode): string {
+  switch (node.kind) {
+    case "hash":
+      return node.commit.shortHash;
+    case "message":
+      return firstLine(node.commit.message);
     case "author":
-      return "Author";
+      return formatAuthor(node.commit);
     case "date":
-      return "Date";
+      return formatDate(node.commit);
   }
+}
+
+function valueFor(node: CommitNode): string {
+  switch (node.kind) {
+    case "hash":
+      return node.commit.hash;
+    case "message":
+      return node.commit.message;
+    case "author":
+      return formatAuthor(node.commit);
+    case "date":
+      return formatDate(node.commit);
+  }
+}
+
+function messageTooltip(message: string): vscode.MarkdownString {
+  const tooltip = new vscode.MarkdownString();
+  tooltip.appendText(message);
+  return tooltip;
 }
 
 function firstLine(message: string): string {
