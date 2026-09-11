@@ -1,0 +1,125 @@
+name: Build VSIX
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - package.json
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-vsix-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and attach VSIX
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Require main branch
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "Releases may only be built from the main branch."
+          exit 1
+
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Resolve version and existing release asset
+        id: release
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "package.json version must use stable X.Y.Z SemVer; got: $version"
+            exit 1
+          fi
+
+          name="$(node -p "require('./package.json').name")"
+          tag="v${version}"
+          asset="${name}-${version}.vsix"
+          release_exists=false
+          should_build=true
+
+          if assets="$(gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null)"; then
+            release_exists=true
+            if grep -Fxq "$asset" <<< "$assets"; then
+              should_build=false
+            fi
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "asset=$asset" >> "$GITHUB_OUTPUT"
+          echo "release_exists=$release_exists" >> "$GITHUB_OUTPUT"
+          echo "should_build=$should_build" >> "$GITHUB_OUTPUT"
+
+      - name: Report existing build
+        if: steps.release.outputs.should_build == 'false'
+        run: |
+          {
+            echo "## VSIX build skipped"
+            echo
+            echo "Release \`${{ steps.release.outputs.tag }}\` already contains \`${{ steps.release.outputs.asset }}\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set up Bun
+        if: steps.release.outputs.should_build == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.1
+
+      - name: Install dependencies
+        if: steps.release.outputs.should_build == 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Type-check
+        if: steps.release.outputs.should_build == 'true'
+        run: bun run check
+
+      - name: Lint
+        if: steps.release.outputs.should_build == 'true'
+        run: bun run lint
+
+      - name: Run unit tests
+        if: steps.release.outputs.should_build == 'true'
+        run: bun test test/unit
+
+      - name: Run integration tests
+        if: steps.release.outputs.should_build == 'true'
+        run: xvfb-run -a bun run test:integration
+
+      - name: Package VSIX
+        if: steps.release.outputs.should_build == 'true'
+        run: |
+          bun run package
+          test -f "${{ steps.release.outputs.asset }}"
+
+      - name: Upload to existing release
+        if: steps.release.outputs.should_build == 'true' && steps.release.outputs.release_exists == 'true'
+        run: gh release upload "${{ steps.release.outputs.tag }}" "${{ steps.release.outputs.asset }}"
+
+      - name: Create draft release and upload VSIX
+        if: steps.release.outputs.should_build == 'true' && steps.release.outputs.release_exists == 'false'
+        run: |
+          gh release create "${{ steps.release.outputs.tag }}" \
+            "${{ steps.release.outputs.asset }}" \
+            --draft \
+            --target "$GITHUB_SHA" \
+            --title "${{ steps.release.outputs.tag }}" \
+            --generate-notes
+
+      - name: Report completed build
+        if: steps.release.outputs.should_build == 'true'
+        run: |
+          {
+            echo "## VSIX build completed"
+            echo
+            echo "Uploaded \`${{ steps.release.outputs.asset }}\` to Release \`${{ steps.release.outputs.tag }}\`."
+          } >> "$GITHUB_STEP_SUMMARY"

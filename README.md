@@ -86,6 +86,29 @@ bun run build
 
 在 VS Code 中打开本仓库并运行 `Run Extension` 调试配置。完整的架构、数据流、边缘情况和验证策略参阅[技术设计文档](docs/technical-design.md)。
 
+## 构建与发布
+
+### GitHub Actions 构建
+
+仓库中的 **Build VSIX** 工作流支持两种触发方式：
+
+- 在 GitHub 仓库的 **Actions → Build VSIX → Run workflow** 页面手动运行；请选择 `main` 分支。
+- 修改 `package.json` 并推送到 `main` 时自动运行。
+
+工作流使用 `package.json` 中的 `version` 作为版本号，并将产物命名为 `git-commit-inspector-<version>.vsix`。构建通过后，产物会上传到 `v<version>` 对应的 GitHub 草稿 Release；审核完成后可在 Releases 页面手动公开。
+
+如果对应 Release 已经包含同名 VSIX，工作流会直接成功结束，不会重复安装依赖、测试或打包。发布新版本前必须先把 `package.json` 中的版本递增为新的 `X.Y.Z`。
+
+### 发布到 VS Code Marketplace
+
+1. 登录 [Visual Studio Marketplace Publisher 管理页](https://marketplace.visualstudio.com/manage)，创建或确认拥有 ID 为 `fivge` 的 Publisher。这个 ID 必须与 `package.json` 中的 `publisher` 一致。
+2. 从 GitHub 草稿 Release 下载 VSIX，在 VS Code 扩展视图右上角菜单中选择 **Install from VSIX...**，完成最终安装验证。
+3. 在 Publisher 管理页选择新增 VS Code 扩展并上传该 VSIX。后续版本仍需先递增 `package.json.version`，已经发布过的版本号不能重复使用。
+
+也可以在本地通过 `bunx vsce publish --packagePath git-commit-inspector-X.Y.Z.vsix` 发布。认证与 Publisher 创建步骤参阅 [VS Code 官方发布指南](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)。
+
+本仓库暂不在 GitHub Actions 中保存 Marketplace 发布凭据。如果以后增加自动发布，应优先采用 Microsoft Entra ID 工作负载身份和 `vsce publish --azure-credential`；Azure DevOps 全局 Personal Access Token 将于 2026 年 12 月 1 日退役。
+
 ## License
 
 [MIT](LICENSE)
