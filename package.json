@@ -2,7 +2,7 @@
   "name": "git-commit-inspector",
   "displayName": "Git Commit Inspector",
   "description": "Inspect a Git commit from its SHA in the integrated terminal.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "fivge",
   "private": true,
   "license": "MIT",
