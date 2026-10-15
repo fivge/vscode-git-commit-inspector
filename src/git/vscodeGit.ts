@@ -39,6 +39,11 @@ export interface VsCodeGitRepository {
     ref2: string,
     path?: string,
   ): Promise<VsCodeGitDiffChange[]>;
+  /** Passes `range` to `git diff` verbatim. Not available in older VS Code. */
+  diffBetweenWithStats2?(
+    range: string,
+    path?: string,
+  ): Promise<VsCodeGitDiffChange[]>;
   getObjectDetails(
     treeish: string,
     path: string,

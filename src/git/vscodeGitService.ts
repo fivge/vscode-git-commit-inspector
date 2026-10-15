@@ -58,7 +58,12 @@ export class VsCodeGitService implements GitService {
   ): Promise<readonly CommitChange[]> {
     const nativeRepository = await this.getNativeRepository(repository);
     const base = commit.parents[0] ?? EMPTY_TREE_SHA1;
-    const changes = await nativeRepository.diffBetweenWithStats(base, commit.hash);
+    // diffBetweenWithStats runs `git diff base...commit`, which needs a merge
+    // base and fails for the empty tree unless VS Code has lazily cached it.
+    // A two-dot range is equivalent to `git diff base commit`.
+    const changes = nativeRepository.diffBetweenWithStats2
+      ? await nativeRepository.diffBetweenWithStats2(`${base}..${commit.hash}`)
+      : await nativeRepository.diffBetweenWithStats(base, commit.hash);
     return changes.map((change) => normalizeChange(repository, change));
   }
 
