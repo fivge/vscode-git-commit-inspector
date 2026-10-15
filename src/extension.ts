@@ -9,6 +9,8 @@ import { VsCodeGitService } from "./git/vscodeGitService";
 import { CommitLinkProvider } from "./terminal/commitLinkProvider";
 import { ChangeTreeProvider } from "./views/changeTreeProvider";
 import { CommitTreeProvider } from "./views/commitTreeProvider";
+import { openWorkspaceFile } from "./views/openWorkspaceFile";
+import type { TreeNode } from "./views/treeBuilder";
 
 export function activate(context: vscode.ExtensionContext): void {
   const git = new VsCodeGitService();
@@ -65,6 +67,10 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand(
       "gitCommitInspect.openDiff",
       (change: CommitChange) => diffController.open(change),
+    ),
+    vscode.commands.registerCommand(
+      "gitCommitInspect.openFile",
+      (node?: TreeNode) => openWorkspaceFile(node, controller.current),
     ),
   );
 }

@@ -7,6 +7,7 @@ import {
 } from "../../../src/diff/revisionUri";
 import { VsCodeGitService } from "../../../src/git/vscodeGitService";
 import { testChangeTree } from "./changeTree";
+import { testOpenWorkspaceFile } from "./openWorkspaceFile";
 
 export async function run(): Promise<void> {
   const root = vscode.workspace.workspaceFolders?.[0]?.uri;
@@ -42,6 +43,7 @@ export async function run(): Promise<void> {
 
   const rootCommit = await gitService.resolveCommit(repository, "test-root");
   await testChangeTree({ repository, commit: rootCommit, changes: [] });
+  await testOpenWorkspaceFile({ repository, commit: rootCommit, changes: [] });
   assert.equal(rootCommit.parents.length, 0);
   assert.deepEqual(
     (await gitService.getCommitChanges(repository, rootCommit)).map(

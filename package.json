@@ -52,6 +52,12 @@
         "title": "Clear",
         "category": "Git Commit Inspector",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "gitCommitInspect.openFile",
+        "title": "Open File",
+        "category": "Git Commit Inspector",
+        "icon": "$(go-to-file)"
       }
     ],
     "viewsContainers": {
@@ -97,11 +103,20 @@
           "command": "gitCommitInspect.copyCommitValue",
           "when": "view == gitCommitInspect.commit && viewItem == commitInfo.copyable",
           "group": "navigation"
+        },
+        {
+          "command": "gitCommitInspect.openFile",
+          "when": "view == gitCommitInspect.files && viewItem =~ /^file\\./",
+          "group": "inline"
         }
       ],
       "commandPalette": [
         {
           "command": "gitCommitInspect.copyCommitValue",
+          "when": "false"
+        },
+        {
+          "command": "gitCommitInspect.openFile",
           "when": "false"
         }
       ]
