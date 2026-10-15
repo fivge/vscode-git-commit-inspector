@@ -1,0 +1,110 @@
+name: Publish to Marketplace
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish (for example v1.0.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-marketplace-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish VSIX to VS Code Marketplace
+    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
+    runs-on: ubuntu-latest
+    # The Entra ID federated credential can be scoped to this environment or the repository.
+    environment: marketplace
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID || secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID || secrets.AZURE_TENANT_ID }}
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+    steps:
+      - name: Validate tag
+        shell: bash
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tag must be vX.Y.Z; got: $TAG"
+            exit 1
+          fi
+
+      - name: Check out release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Resolve VSIX asset
+        id: asset
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          name="$(node -p "require('./package.json').name")"
+          if [[ "v${version}" != "$TAG" ]]; then
+            echo "package.json version ${version} does not match release tag ${TAG}"
+            exit 1
+          fi
+          echo "file=${name}-${version}.vsix" >> "$GITHUB_OUTPUT"
+
+      - name: Download VSIX from release
+        run: |
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "${{ steps.asset.outputs.file }}"
+          test -f "${{ steps.asset.outputs.file }}"
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.1
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Sign in to Microsoft Entra ID
+        if: env.AZURE_CLIENT_ID != ''
+        uses: azure/login@v3
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Publish to VS Code Marketplace
+        run: |
+          if [[ -n "$AZURE_CLIENT_ID" ]]; then
+            echo "Publishing to VS Code Marketplace using Microsoft Entra ID..."
+            bun node_modules/@vscode/vsce/vsce publish \
+              --azure-credential \
+              --skip-duplicate \
+              --packagePath "${{ steps.asset.outputs.file }}"
+          elif [[ -n "$VSCE_PAT" ]]; then
+            echo "Publishing to VS Code Marketplace using Personal Access Token..."
+            bun node_modules/@vscode/vsce/vsce publish \
+              --pat "$VSCE_PAT" \
+              --skip-duplicate \
+              --packagePath "${{ steps.asset.outputs.file }}"
+          else
+            echo "::error::Neither Microsoft Entra ID (AZURE_CLIENT_ID & AZURE_TENANT_ID) nor VSCE_PAT is configured."
+            echo "Please configure repository variables/secrets or environment secrets for the 'marketplace' environment."
+            exit 1
+          fi
+
+      - name: Report published version
+        run: |
+          {
+            echo "## Published to VS Code Marketplace"
+            echo
+            echo "Published \`${{ steps.asset.outputs.file }}\` from Release \`${TAG}\`."
+          } >> "$GITHUB_STEP_SUMMARY"

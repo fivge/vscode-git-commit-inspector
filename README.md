@@ -102,13 +102,35 @@ bun run build
 
 ### 发布到 VS Code Marketplace
 
-1. 登录 [Visual Studio Marketplace Publisher 管理页](https://marketplace.visualstudio.com/manage)，创建或确认拥有 ID 为 `fivge` 的 Publisher。这个 ID 必须与 `package.json` 中的 `publisher` 一致。
-2. 从 GitHub 草稿 Release 下载 VSIX，在 VS Code 扩展视图右上角菜单中选择 **Install from VSIX...**，完成最终安装验证。
-3. 在 Publisher 管理页选择新增 VS Code 扩展并上传该 VSIX。后续版本仍需先递增 `package.json.version`，已经发布过的版本号不能重复使用。
+本仓库配置了 **Publish to Marketplace** 自动发布工作流（`.github/workflows/publish-marketplace.yml`）：
+
+- **自动触发**：在 GitHub Releases 页面将草稿 Release 发布（点击 **Publish release**）后，工作流会自动下载该 Release 中的 VSIX 并推送到 VS Code Marketplace。
+- **手动触发**：在 GitHub 仓库 **Actions → Publish to Marketplace → Run workflow** 输入 release tag（如 `v1.0.0`）手动发布。
+- 若 Marketplace 上该版本已存在，会使用 `--skip-duplicate` 自动跳过，避免重复报错。
+
+#### 认证方式配置
+
+工作流优先使用 **Microsoft Entra ID 工作负载身份**（OIDC 免密认证），同时也兼容传统的 **Personal Access Token (PAT)**：
+
+1. **方式一：Microsoft Entra ID 工作负载身份（推荐）**
+   - 在 Azure Portal 创建应用注册（App Registration）并记录 Application (Client) ID 与 Directory (Tenant) ID。
+   - 在 Azure 应用的 **Certificates & secrets → Federated credentials** 中添加 GitHub Actions 联合凭据，关联本仓库及 `marketplace` Environment（或 `main` 分支）。
+   - 获取该身份在 Visual Studio Marketplace 的 Profile GUID：
+     ```bash
+     az rest -u https://app.vssps.visualstudio.com/_apis/profile/profiles/me --resource 499b84ac-1321-427f-aa17-267ca6975798
+     ```
+   - 登录 [Visual Studio Marketplace Publisher 管理页](https://marketplace.visualstudio.com/manage)，在 Publisher 的 **Members** 中添加该 GUID 并赋予 **Contributor** 权限。
+   - 在 GitHub 仓库的 **Settings → Environments → marketplace**（或 Repository Variables/Secrets）中配置：
+     - `AZURE_CLIENT_ID`
+     - `AZURE_TENANT_ID`
+
+2. **方式二：Personal Access Token（备选）**
+   - 在 Azure DevOps 生成具有 Marketplace 发布权限的 PAT（注意 Azure DevOps 全局 PAT 将于 2026 年 12 月 1 日退役）。
+   - 在 GitHub 仓库中添加 Secret：`VSCE_PAT`。
+
+#### 手动与本地发布
 
 也可以在本地通过 `bunx vsce publish --packagePath git-commit-inspector-X.Y.Z.vsix` 发布。认证与 Publisher 创建步骤参阅 [VS Code 官方发布指南](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)。
-
-本仓库暂不在 GitHub Actions 中保存 Marketplace 发布凭据。如果以后增加自动发布，应优先采用 Microsoft Entra ID 工作负载身份和 `vsce publish --azure-credential`；Azure DevOps 全局 Personal Access Token 将于 2026 年 12 月 1 日退役。
 
 ## License
 
